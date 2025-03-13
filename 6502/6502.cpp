@@ -1,36 +1,53 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+using Byte = unsigned char;
+using Word = unsigned short;
+using u32 = unsigned int;
+
+struct Mem {
+    static constexpr u32 MAX_MEM = 1024 * 64;
+    Byte Data[MAX_MEM];
+
+    void Initialise() {
+        for (u32 i = 0; i < MAX_MEM; i++) {
+            Data[i] = 0;
+        }
+    }
+};
+
 struct CPU {
-	using Byte = unsigned char;
-	using Word = unsigned short;
+    Word PC; // Program counter
+    Word SP; // Stack pointer
 
-//Program counter
-	Word PC;
-	//Stack pointer
-	Word SP;
+    Byte A, Y, X; // Registers
 
-	Byte A, Y, X; //Registers
+    union {
+        struct {
+            Byte C : 1; // Carry
+            Byte Z : 1; // Zero
+            Byte I : 1; // Interrupt disable
+            Byte D : 1; // Decimal mode
+            Byte B : 1; // Break command
+            Byte V : 1; // Overflow
+            Byte N : 1; // Negative
+            Byte : 1;  // Unused bit
+        };
+        Byte PS; // Combined status register
+    };
 
-	//Status flags
-	Byte C : 1;
-	Byte Z : 1;
-	Byte I : 1;
-	Byte D : 1;
-	Byte B : 1;
-	Byte V : 1;
-	Byte N : 1;
-
-	void Reset() {
-		PC = 0xFFFC; //Initialization
-		SP = 0x0100;
-		C = Z = I = D = B = V = N = 0;
-		A = X = Y = 0;
-	}
+    void Reset(Mem& memory) {
+        PC = 0xFFFC;
+        SP = 0x0100;
+        PS = 0;
+        A = X = Y = 0;
+        memory.Initialise();
+    }
 };
 
 int main() {
-	CPU cpu;
-	cpu.Reset();
-
+    Mem mem;
+    CPU cpu;
+    cpu.Reset(mem);
+    return 0;
 }
