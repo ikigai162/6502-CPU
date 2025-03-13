@@ -14,6 +14,10 @@ struct Mem {
             Data[i] = 0;
         }
     }
+
+    Byte operator[](u32 Address) const {
+        return Data[Address];
+    }
 };
 
 struct CPU {
@@ -36,12 +40,26 @@ struct CPU {
         Byte PS; // Combined status register
     };
 
-    void Reset(Mem& memory) {
+    void Reset( Mem& memory ) {
         PC = 0xFFFC;
         SP = 0x0100;
         PS = 0;
         A = X = Y = 0;
         memory.Initialise();
+    }
+
+    Byte FetchByte(u32& Cycles, Mem& memory) {
+        Byte Data = memory[PC];
+        PC++;
+        Cycles--;
+        return Data;
+    };
+
+    void Execute( u32 Cycles, Mem& memory) {
+        while (Cycles > 0) {
+            Byte Instruction = FetchByte(Cycles, memory);
+            (void)Instruction;
+        }
     }
 };
 
@@ -49,5 +67,6 @@ int main() {
     Mem mem;
     CPU cpu;
     cpu.Reset(mem);
+    cpu.Execute(2, mem);
     return 0;
 }
