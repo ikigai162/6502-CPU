@@ -20,8 +20,17 @@ struct CPU {
 	Byte B : 1;
 	Byte V : 1;
 	Byte N : 1;
+
+	void Reset() {
+		PC = 0xFFFC; //Initialization
+		SP = 0x0100;
+		C = Z = I = D = B = V = N = 0;
+		A = X = Y = 0;
+	}
 };
 
 int main() {
+	CPU cpu;
+	cpu.Reset();
 
 }
