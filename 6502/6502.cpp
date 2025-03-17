@@ -1,5 +1,7 @@
 ﻿#include <stdlib.h>
 #include <stdio.h>
+//using namespace Mem;
+//using namespace Mem;
 
 using Byte = unsigned char;
 using Word = unsigned short;
@@ -22,7 +24,15 @@ struct Mem {
     Byte& operator[](u32 Address) {
         return Data[Address];
     }
+    // Write 2 bytes
+    void WriteWord(u32& Cycles, Word Value, u32 Address) {
+        Data[Address] = Value & 0xFF;
+        Data[Address + 1] = (Value >> 8);
+        Cycles -= 2;
+    }
 };
+
+    
 
 struct CPU {
     Word PC; // Program counter
@@ -47,6 +57,7 @@ struct CPU {
     static constexpr Byte INS_LDA_IM = 0xA9;
     static constexpr Byte INS_LDA_ZP = 0xA5; // Zero page
     static constexpr Byte INS_LDA_ZPX = 0xB5;
+    static constexpr Byte INS_JSR = 0x20; // Jump to Subroutine
 
     void LDASetStatus(){
         Z = (A == 0);
@@ -66,6 +77,18 @@ struct CPU {
         PC++;
         Cycles--;
         return Data;
+    }
+
+    Word FetchWord(u32& Cycles, Mem& memory) {
+        Word Data = memory[PC];
+        PC++;
+
+        Data |= (memory[PC] << 8);
+        PC++;
+
+        Cycles -= 2;
+        return Data;
+
     }
 
     Byte ReadByte(u32& Cycles, Byte Address, Mem& memory) {
@@ -96,6 +119,15 @@ struct CPU {
                 ZeroPageAddr += X;
                 Cycles--;
                 LDASetStatus();
+                printf("[LDA ZPX] A=0x%02X, Z=%d, N=%d, ZPX Address=0x%02X\n", A, Z, N, ZeroPageAddr);
+            }break;
+            case INS_JSR: {
+                Word SubbAddr = FetchWord(Cycles, memory);
+                memory.WriteWord(Cycles, PC - 1, SP);
+                Cycles--;
+                PC = SubbAddr;
+                Cycles--;
+                printf("[JSR] A=0x%02X, Z=%d, N=%d, JSR Address=0x%02X\n", A, Z, N, SubbAddr);
             }break;
             default: {
                 printf("Instruction not handled %d\n", Instruction);
@@ -111,11 +143,13 @@ int main() {
     CPU cpu;
     cpu.Reset(mem);
      
-    mem[0xFFFC] = CPU::INS_LDA_ZP;
+    mem[0xFFFC] = CPU::INS_JSR;
     mem[0xFFFD] = 0x42;
-    mem[0x0042] = 0x84;
+    mem[0xFFFE] = 0x42;
+    mem[0x4242] = CPU::INS_LDA_IM;
+    mem[0x4243] = 0x84;
 
-    u32 cycles = 3;
+    u32 cycles = 9;
     cpu.Execute(cycles, mem);
 
     printf("Final registers:\n");
