@@ -1,4 +1,4 @@
-#include <stdlib.h>
+﻿#include <stdlib.h>
 #include <stdio.h>
 
 using Byte = unsigned char;
@@ -14,12 +14,12 @@ struct Mem {
             Data[i] = 0;
         }
     }
-
+    // Read 1 byte
     Byte operator[](u32 Address) const {
         return Data[Address];
     }
-
-    Byte& operator[](u32 Address) {  // Removed const qualifier
+    // Write 1 byte
+    Byte& operator[](u32 Address) {
         return Data[Address];
     }
 };
@@ -45,6 +45,13 @@ struct CPU {
     };
 
     static constexpr Byte INS_LDA_IM = 0xA9;
+    static constexpr Byte INS_LDA_ZP = 0xA5; // Zero page
+    static constexpr Byte INS_LDA_ZPX = 0xB5;
+
+    void LDASetStatus(){
+        Z = (A == 0);
+        N = (A & 0b10000000) > 0;
+    }
 
     void Reset(Mem& memory) {
         PC = 0xFFFC;
@@ -61,6 +68,12 @@ struct CPU {
         return Data;
     }
 
+    Byte ReadByte(u32& Cycles, Byte Address, Mem& memory) {
+        Byte Data = memory[Address];
+        Cycles--;
+        return Data;
+    }
+
     void Execute(u32& Cycles, Mem& memory) {
         while (Cycles > 0) {
             Byte Instruction = FetchByte(Cycles, memory);
@@ -68,9 +81,22 @@ struct CPU {
             case INS_LDA_IM: {
                 Byte Value = FetchByte(Cycles, memory);
                 A = Value;
-                Z = (A == 0);
-                N = (A & 0b10000000) > 0;
+                LDASetStatus();
+
+                printf("[LDA] A=0x%02X, Z=%d, N=%d\n", A, Z, N);
             } break;
+            case INS_LDA_ZP: {
+                Byte ZeroPageAddress = FetchByte(Cycles, memory);
+                A = ReadByte(Cycles, ZeroPageAddress, memory);
+                LDASetStatus();
+                printf("[LDA ZP] A=0x%02X, Z=%d, N=%d, ZP Address=0x%02X\n", A, Z, N, ZeroPageAddress);
+            }break;
+            case INS_LDA_ZPX: {
+                Byte ZeroPageAddr = FetchByte(Cycles, memory);
+                ZeroPageAddr += X;
+                Cycles--;
+                LDASetStatus();
+            }break;
             default: {
                 printf("Instruction not handled %d\n", Instruction);
                 break;
@@ -84,10 +110,18 @@ int main() {
     Mem mem;
     CPU cpu;
     cpu.Reset(mem);
-    mem[0xFFFC] = CPU::INS_LDA_IM;
+     
+    mem[0xFFFC] = CPU::INS_LDA_ZP;
     mem[0xFFFD] = 0x42;
+    mem[0x0042] = 0x84;
 
-    u32 cycles = 2;
+    u32 cycles = 3;
     cpu.Execute(cycles, mem);
+
+    printf("Final registers:\n");
+    printf("A=0x%02X, X=0x%02X, Y=0x%02X\n", cpu.A, cpu.X, cpu.Y);
+    printf("Flags: Z=%d, N=%d\n", cpu.Z, cpu.N);
+
+    getchar(); // Păstrează consola deschisă
     return 0;
 }
